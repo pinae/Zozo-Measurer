@@ -23,7 +23,7 @@ def detect_points(img):
     positions = []
     distances = []
     for i in range(len(unskewed_points)):
-        positions.append(ellipses[0])
+        positions.append(ellipses[i][0])
         confidence_for_small_point = is_small_point(unskewed_points[i], ellipses[i])
         if confidence_for_small_point > 0.3:
             point_ids.append(0)
@@ -47,7 +47,7 @@ def detect_points(img):
         "skewed_point": skewed_points[i],
         "unskewed_point": unskewed_points[i],
         "origin": origins[i],
-        "ellipses": ellipses[i],
+        "ellipse": ellipses[i],
         "confidence": confidences[i],
         "point_id": point_ids[i],
         "point_type": "small_point" if point_ids[i] == 0 else "big_point",
@@ -65,10 +65,41 @@ if __name__ == '__main__':
 
     p_coll_img = collect_points((64, 64), raw_data)
     if min(p_coll_img.shape[0:1]) > 0:
-        cv2.imshow('Collected Points', p_coll_img)
+        # cv2.imshow('Collected Points', p_coll_img)
+        cv2.imwrite("collected_points.png", p_coll_img)
 
-    im_preview, scale_factor = scale_preview(im)
-    # Show window
-    #cv2.imshow('Source', im_preview)
+    im_draw = im.copy()
+    for i in range(len(point_ids)):
+        cv2.ellipse(im_draw, raw_data[i]["ellipse"],
+                    color=(0, int(confidences[i] * 255), int((1 - confidences[i]) * 255)),
+                    thickness=3)
+        cv2.line(im_draw,
+                 (int(positions[i][0]-5), int(positions[i][1]-5)),
+                 (int(positions[i][0]+5), int(positions[i][1]+5)),
+                 color=(255, 0, 0), thickness=3)
+        cv2.line(im_draw,
+                 (int(positions[i][0] - 5), int(positions[i][1] + 5)),
+                 (int(positions[i][0] + 5), int(positions[i][1] - 5)),
+                 color=(255, 0, 0), thickness=3)
+        if confidences[i] > 0.3:
+            cv2.putText(im_draw, str(point_ids[i]),
+                        (int(positions[i][0] + raw_data[i]["ellipse"][1][0] * 0.5),
+                         int(positions[i][1] - raw_data[i]["ellipse"][1][0] * 0.2)),
+                        fontFace=cv2.FONT_HERSHEY_PLAIN,
+                        fontScale=2,
+                        color=(0, 255, 255),
+                        thickness=2,
+                        lineType=cv2.LINE_AA)
+            cv2.putText(im_draw, "{:02.2f}".format(distances[i]/100),
+                        (int(positions[i][0] + raw_data[i]["ellipse"][1][0] * 0.4),
+                         int(positions[i][1] + raw_data[i]["ellipse"][1][0] * 0.8)),
+                        fontFace=cv2.FONT_HERSHEY_PLAIN,
+                        fontScale=2,
+                        color=(255, 0, 255),
+                        thickness=2,
+                        lineType=cv2.LINE_AA)
+    cv2.imwrite("point_positions.png", im_draw)
+    im_preview, scale_factor = scale_preview(im_draw)
+    cv2.imshow('Point positions', im_preview)
     key = cv2.waitKey(0)
     cv2.destroyAllWindows()

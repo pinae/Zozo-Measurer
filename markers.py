@@ -77,33 +77,19 @@ def find_marker_ellipses(im):
     points = []
     origins = []
     ellipses = []
-
-    import cv2
-    im_draw = im.copy()
-
     id_point_candidates = []
     small_point_candidates = []
     for cnt in contours:
         if contour_sanity_check(cnt, im.shape[0], point_d=0.02):
-            cv2.drawContours(im_draw, [cnt], 0, (0, 255, 255), 1)
             id_point_candidates.append(cnt)
         elif contour_sanity_check(cnt, im.shape[0], point_d=0.01):
-            cv2.drawContours(im_draw, [cnt], 0, (255, 255, 0), 1)
             small_point_candidates.append(cnt)
-        else:
-            cv2.drawContours(im_draw, [cnt], 0, (255, 0, 255), 1)
-
-    for i, cnt in enumerate(id_point_candidates):
+    for cnt in id_point_candidates:
         x, y, w, h = boundingRect(cnt)
         ellipse = fitEllipse(cnt)
         points.append(im_gray[y:y + h, x:x + w])
         origins.append((x, y))
         ellipses.append(ellipse)
-
-    from detect_points import scale_preview
-    im_preview, sf = scale_preview(im_draw)
-    cv2.imshow('Contours', im_preview)
-
     return points, origins, ellipses
 
 

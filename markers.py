@@ -212,6 +212,17 @@ def find_max_id_in_pattern(pattern):
     return np.max(id_candidates)
 
 
+def find_best_10_confidences(confidences):
+    best_10_confidences = np.zeros(10, dtype=np.float32)
+    best_10_indexes = np.zeros(10, dtype=np.uint32)
+    for i in range(len(confidences)):
+        if np.min(best_10_confidences) < confidences[i]:
+            min_index = np.argmin(best_10_confidences)
+            best_10_confidences[min_index] = confidences[i]
+            best_10_indexes[min_index] = i
+    return best_10_confidences, best_10_indexes
+
+
 def draw_ideal_point(point_id, size=(18, 18), angle=0):
     mask = 1 - generate_mask(size, max(size)/2, angle, point_id, draw_center=True)
     img = np.zeros((*size, 3), dtype=np.uint8)
@@ -221,19 +232,19 @@ def draw_ideal_point(point_id, size=(18, 18), angle=0):
     return img
 
 
-def collect_points(skewed_point_images, point_images, target_size, point_ids, confidences):
-    canvas = np.zeros((target_size[0] * 3 + 29, len(skewed_point_images) * target_size[1], 3), dtype=np.uint8)
-    for i in range(len(skewed_point_images)):
-        spi = skewed_point_images[i]
+def collect_points(target_size, data):
+    canvas = np.zeros((target_size[0] * 3 + 41, len(data) * target_size[1], 3), dtype=np.uint8)
+    for i in range(len(data)):
+        spi = data[i]["skewed_point"]
         w = min(int(spi.shape[1] * target_size[1] / spi.shape[0]), target_size[0])
         h = min(int(spi.shape[0] * target_size[0] / spi.shape[1]), target_size[1])
         spis = resize(spi, (w, h), interpolation=INTER_CUBIC)
-        pis = resize(point_images[i], target_size, interpolation=INTER_CUBIC)
-        if point_ids[i] == 0:  # Draw a small point
+        pis = resize(data[i]["unskewed_point"], target_size, interpolation=INTER_CUBIC)
+        if data[i]["point_id"] == 0:  # Draw a small point
             sp = draw_small_point(target_size, target_size[0] / 2)
             ideal_point = np.stack([sp, sp, sp], axis=2)
         else:  # Draw a big point
-            ideal_point = draw_ideal_point(point_ids[i], size=target_size, angle=0)
+            ideal_point = draw_ideal_point(data[i]["point_id"], size=target_size, angle=0)
         canvas[(target_size[0] - spis.shape[0]) // 2:
                (target_size[0] - spis.shape[0]) // 2 + spis.shape[0],
                i * target_size[1] + (target_size[1] - spis.shape[1]) // 2:
@@ -247,16 +258,22 @@ def collect_points(skewed_point_images, point_images, target_size, point_ids, co
                2 * target_size[0] + ideal_point.shape[0],
                i * target_size[1]:
                i * target_size[1] + ideal_point.shape[1]] = ideal_point
-        putText(canvas, str(point_ids[i]), (i * target_size[1] + 4, target_size[0] * 3 + 12),
+        putText(canvas, str(data[i]["point_id"]), (i * target_size[1] + 4, target_size[0] * 3 + 12),
                 fontFace=FONT_HERSHEY_PLAIN,
                 fontScale=1,
                 color=(0, 255, 255),
                 thickness=1,
                 lineType=LINE_AA)
-        putText(canvas, str(int(confidences[i]*100)) + "%", (i * target_size[1] + 4, target_size[0] * 3 + 26),
+        putText(canvas, str(int(data[i]["confidence"]*100)) + "%", (i * target_size[1] + 4, target_size[0] * 3 + 26),
                 fontFace=FONT_HERSHEY_PLAIN,
                 fontScale=1,
-                color=(0, int(confidences[i] * 255), int((1 - confidences[i]) * 255)),
+                color=(0, int(data[i]["confidence"] * 255), int((1 - data[i]["confidence"]) * 255)),
+                thickness=1,
+                lineType=LINE_AA)
+        putText(canvas, "{:02.1f}mm".format(data[i]["distance"]), (i * target_size[1] + 4, target_size[0] * 3 + 38),
+                fontFace=FONT_HERSHEY_PLAIN,
+                fontScale=0.7,
+                color=(255, 0, 255),
                 thickness=1,
                 lineType=LINE_AA)
     return canvas

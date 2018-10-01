@@ -20,10 +20,14 @@ if __name__ == '__main__':
     skewed_points, origins, ellipses = find_marker_ellipses(im)
     unskewed_points = [unskew_point(skewed_points[i], origins[i], ellipses[i])
                        for i in range(len(skewed_points))]
-    point_ids = [get_point_id(unskewed_points[i], ellipses[i]) for i in range(len(unskewed_points))]
-    print(point_ids)
+    point_ids = []
+    confidences = []
+    for i in range(len(unskewed_points)):
+        point_id, confidence = get_point_id(unskewed_points[i], ellipses[i])
+        point_ids.append(point_id)
+        confidences.append(confidence)
 
-    p_coll_img = collect_points(skewed_points, unskewed_points, (64, 64), point_ids)
+    p_coll_img = collect_points(skewed_points, unskewed_points, (64, 64), point_ids, confidences)
     if min(p_coll_img.shape[0:1]) > 0:
         cv2.imshow('Collected Points', p_coll_img)
 

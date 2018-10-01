@@ -124,28 +124,36 @@ def unskew_point(imc, origin, ellipse):
 
 
 def get_point_id(imc, ellipse):
-    min_sum = np.sum(imc * generate_mask(imc.shape, ellipse[1][1], 0))
+    mask = generate_mask(imc.shape, ellipse[1][1], 0)
+    masked_sum = np.sum(imc * mask)
+    sum_of_mask = np.sum(mask)
+    min_sum = masked_sum / sum_of_mask
     pattern_angle = 0
     for alpha in range(1, 60):
         mask = generate_mask(imc.shape, ellipse[1][1] / 2, alpha)
         masked_sum = np.sum(imc * mask)
-        if masked_sum < min_sum:
-            min_sum = masked_sum
+        sum_of_mask = np.sum(mask)
+        avg_color = masked_sum / sum_of_mask
+        if avg_color < min_sum:
+            min_sum = avg_color
             pattern_angle = alpha
     sums = np.zeros(12, dtype=np.float32)
     for i in range(12):
         mask = generate_mask(imc.shape, ellipse[1][1] / 2, pattern_angle, bit_mask=1 << i)
         masked_sum = np.sum(imc * mask)
-        sums[i] = masked_sum
+        sum_of_mask = np.sum(mask)
+        sums[i] = masked_sum / sum_of_mask
     min_sum = np.min(sums)
     max_sum = np.max(sums)
     thresh = min_sum + (max_sum - min_sum) / 2
     id_bits = 0
+    confidence = 1
     for i in range(12):
+        confidence = min(confidence, 1 - min(sums[i] - min_sum, max_sum - sums[i]) ** 2 / ((max_sum - thresh) ** 2))
         if sums[i] < thresh:
             id_bits = id_bits | 1 << i
     max_id = find_max_id_in_pattern(id_bits)
-    return max_id
+    return max_id, confidence
 
 
 def generate_mask(shape, r, alpha, bit_mask=4095, draw_center=False):
@@ -186,8 +194,8 @@ def draw_ideal_point(point_id, size=(18, 18), angle=0):
     return img
 
 
-def collect_points(skewed_point_images, point_images, target_size, point_ids):
-    canvas = np.zeros((target_size[0] * 3 + 15, len(skewed_point_images) * target_size[1], 3), dtype=np.uint8)
+def collect_points(skewed_point_images, point_images, target_size, point_ids, confidences):
+    canvas = np.zeros((target_size[0] * 3 + 29, len(skewed_point_images) * target_size[1], 3), dtype=np.uint8)
     for i in range(len(skewed_point_images)):
         spi = skewed_point_images[i]
         w = min(int(spi.shape[1] * target_size[1] / spi.shape[0]), target_size[0])
@@ -212,6 +220,12 @@ def collect_points(skewed_point_images, point_images, target_size, point_ids):
                 fontFace=FONT_HERSHEY_PLAIN,
                 fontScale=1,
                 color=(0, 255, 255),
+                thickness=1,
+                lineType=LINE_AA)
+        putText(canvas, str(int(confidences[i]*100)) + "%", (i * target_size[1] + 4, target_size[0] * 3 + 26),
+                fontFace=FONT_HERSHEY_PLAIN,
+                fontScale=1,
+                color=(0, int(confidences[i] * 255), int((1 - confidences[i]) * 255)),
                 thickness=1,
                 lineType=LINE_AA)
     return canvas

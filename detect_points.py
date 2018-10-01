@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, unicode_literals
-from markers import find_marker_ellipses, unskew_point, get_point_id, collect_points
+from markers import find_marker_ellipses, unskew_point, get_point_id, collect_points, is_small_point
 import cv2
 import sys
 
@@ -23,9 +23,14 @@ if __name__ == '__main__':
     point_ids = []
     confidences = []
     for i in range(len(unskewed_points)):
-        point_id, confidence = get_point_id(unskewed_points[i], ellipses[i])
-        point_ids.append(point_id)
-        confidences.append(confidence)
+        confidence_for_small_point = is_small_point(unskewed_points[i], ellipses[i])
+        if confidence_for_small_point > 0.3:
+            point_ids.append(0)
+            confidences.append(confidence_for_small_point)
+        else:
+            point_id, confidence = get_point_id(unskewed_points[i], ellipses[i])
+            point_ids.append(point_id)
+            confidences.append(confidence)
 
     p_coll_img = collect_points(skewed_points, unskewed_points, (64, 64), point_ids, confidences)
     if min(p_coll_img.shape[0:1]) > 0:

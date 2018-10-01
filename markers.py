@@ -123,6 +123,33 @@ def unskew_point(imc, origin, ellipse):
     return warpAffine(imc, getAffineTransform(source_points, target_points), (max(imc.shape), max(imc.shape)))
 
 
+def draw_small_point(shape, r):
+    small_point = np.zeros(shape, dtype=np.uint8)
+    circle(small_point, (int(shape[0] / 2 * 16), int(shape[1] / 2 * 16)),
+           radius=int(r * 0.5 * 16), color=255, thickness=-1, lineType=LINE_AA, shift=4)
+    circle(small_point, (int(shape[0] / 2 * 16), int(shape[1] / 2 * 16)),
+           radius=int(r * 0.1 * 16), color=0, thickness=-1, lineType=LINE_AA, shift=4)
+    return small_point
+
+
+def is_small_point(imc, ellipse):
+    center_mask = np.zeros(imc.shape, dtype=np.uint8)
+    circle(center_mask, (int(imc.shape[0] / 2 * 16), int(imc.shape[1] / 2 * 16)),
+           radius=int(ellipse[1][1] * 0.09 * 16), color=255, thickness=-1, lineType=LINE_AA, shift=4)
+    center_sum = np.sum(imc * (center_mask / 255))
+    sum_of_center_mask = np.sum(center_mask / 255)
+    avg_center_color = center_sum / sum_of_center_mask
+    circle_mask = draw_small_point(imc.shape, ellipse[1][1])
+    circle_sum = np.sum(imc * (circle_mask / 255))
+    sum_of_circle_mask = np.sum(circle_mask / 255)
+    avg_circle_color = circle_sum / sum_of_circle_mask
+    brightest_color = np.max(imc * (circle_mask / 255))
+    darkest_color = np.min(imc * (center_mask / 255) + (255 - center_mask))
+    center_darkness = 1 - (avg_center_color - darkest_color) / ((brightest_color - darkest_color) / 2)
+    ring_brightness = 1 - (brightest_color - avg_circle_color) / ((brightest_color - darkest_color) / 2)
+    return np.max([0, 0.5 * center_darkness + 0.5 * ring_brightness])
+
+
 def get_point_id(imc, ellipse):
     mask = generate_mask(imc.shape, ellipse[1][1], 0)
     masked_sum = np.sum(imc * mask)
@@ -149,7 +176,7 @@ def get_point_id(imc, ellipse):
     id_bits = 0
     confidence = 1
     for i in range(12):
-        confidence = min(confidence, 1 - min(sums[i] - min_sum, max_sum - sums[i]) ** 2 / ((max_sum - thresh) ** 2))
+        confidence = min(confidence, 1 - (min(sums[i] - min_sum, max_sum - sums[i]) ** 2) / ((max_sum - thresh) ** 2))
         if sums[i] < thresh:
             id_bits = id_bits | 1 << i
     max_id = find_max_id_in_pattern(id_bits)
@@ -202,7 +229,11 @@ def collect_points(skewed_point_images, point_images, target_size, point_ids, co
         h = min(int(spi.shape[0] * target_size[0] / spi.shape[1]), target_size[1])
         spis = resize(spi, (w, h), interpolation=INTER_CUBIC)
         pis = resize(point_images[i], target_size, interpolation=INTER_CUBIC)
-        ideal_point = draw_ideal_point(point_ids[i], size=target_size, angle=0)
+        if point_ids[i] == 0:  # Draw a small point
+            sp = draw_small_point(target_size, target_size[0] / 2)
+            ideal_point = np.stack([sp, sp, sp], axis=2)
+        else:  # Draw a big point
+            ideal_point = draw_ideal_point(point_ids[i], size=target_size, angle=0)
         canvas[(target_size[0] - spis.shape[0]) // 2:
                (target_size[0] - spis.shape[0]) // 2 + spis.shape[0],
                i * target_size[1] + (target_size[1] - spis.shape[1]) // 2:

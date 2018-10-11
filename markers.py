@@ -137,7 +137,7 @@ def is_small_point(imc, ellipse):
 
 
 def get_point_id(imc, ellipse):
-    mask = generate_mask(imc.shape, ellipse[1][1], 0)
+    mask = generate_mask(imc.shape, ellipse[1][1] / 2, 0)
     masked_sum = np.sum(imc * mask)
     sum_of_mask = np.sum(mask)
     min_sum = masked_sum / sum_of_mask

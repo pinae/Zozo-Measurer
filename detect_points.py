@@ -40,9 +40,9 @@ def detect_points(img):
     avg_big_point_size = ellipses_size_sum / 10
     for i in range(len(unskewed_points)):
         if point_ids[i] == 0:
-            distances.append((max(ellipses[i][1]) / avg_big_point_size) / 0.0025)
+            distances.append((max(ellipses[i][1]) / avg_big_point_size) * 400)
         else:
-            distances.append((max(ellipses[i][1]) / avg_big_point_size) / 0.005)
+            distances.append((max(ellipses[i][1]) / avg_big_point_size) * 200)
     raw_data = [{
         "skewed_point": skewed_points[i],
         "unskewed_point": unskewed_points[i],

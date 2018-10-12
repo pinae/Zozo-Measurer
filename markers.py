@@ -161,8 +161,12 @@ def get_point_id(imc, ellipse):
     thresh = min_sum + (max_sum - min_sum) / 2
     id_bits = 0
     confidence = 1
+    sc = (max_sum - min_sum) ** 2 / (800 + (max_sum - min_sum) ** 2)
     for i in range(12):
-        confidence = min(confidence, 1 - (min(sums[i] - min_sum, max_sum - sums[i]) ** 2) / ((max_sum - thresh) ** 2))
+        dc = 1 - (min(sums[i] - min_sum,
+                      max_sum - sums[i]) ** 2) / (
+                (max_sum - thresh) ** 2)
+        confidence = min(confidence, dc * sc)
         if sums[i] < thresh:
             id_bits = id_bits | 1 << i
     max_id = find_max_id_in_pattern(id_bits)

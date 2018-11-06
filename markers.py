@@ -192,7 +192,7 @@ def generate_mask(shape, r, alpha, bit_mask=4095, draw_center=False):
 
 def find_max_id_in_pattern(pattern):
     low = pattern & 63
-    high = (pattern & 63 << 6) >> 6
+    high = (pattern & (63 << 6)) >> 6
     id_candidates = np.zeros(6, dtype=np.int)
     id_candidates[0] = pattern
     for i in range(1, 6):
